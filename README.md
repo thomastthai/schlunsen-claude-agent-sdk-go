@@ -1,5 +1,11 @@
 # Claude Agent SDK for Go
 
+[![Tests](https://github.com/schlunsen/claude-agent-sdk-go/workflows/Tests/badge.svg)](https://github.com/schlunsen/claude-agent-sdk-go/actions)
+[![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go)](https://golang.org/dl/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/schlunsen/claude-agent-sdk-go)](https://github.com/schlunsen/claude-agent-sdk-go/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/schlunsen/claude-agent-sdk-go)](https://goreportcard.com/report/github.com/schlunsen/claude-agent-sdk-go)
+
 **Unofficial community port** of the [official Python SDK](https://github.com/anthropics/claude-agent-sdk-python)
 
 ⚠️ This is **not affiliated with or endorsed by Anthropic**. Use at your own risk.
@@ -19,7 +25,7 @@ A Go SDK for building multi-turn AI agent applications with Claude via the Claud
 
 ## Status
 
-✅ **Implementation Complete** - All core phases implemented and tested
+✅ **Production Ready - v0.1.0 Released**
 
 - [x] Phase 1: Foundation & Types (100%)
 - [x] Phase 2: Transport Layer (100%)
@@ -28,7 +34,7 @@ A Go SDK for building multi-turn AI agent applications with Claude via the Claud
 - [x] Phase 5: Public API (100%)
 - [x] Phase 6: Testing & Validation (100%)
 - [x] Phase 7: Documentation & Examples (100%)
-- [ ] Phase 8: Polish & Release (in progress)
+- [x] Phase 8: Polish & Release (100%)
 
 **Code Statistics:**
 - Production code: ~9,800 lines
@@ -191,8 +197,6 @@ Claude Code CLI (Node.js)
 - **Message Parser**: Converts JSON to Go types
 - **Public API**: User-facing `Query()` function and `Client` type
 
-See [GO_PORT_PLAN.md](../claude-agent-sdk-python/GO_PORT_PLAN.md) for detailed implementation plan.
-
 ## API Reference
 
 ### Query Function (One-Shot)
@@ -314,6 +318,7 @@ Define custom tools via SDK MCP servers:
 | Variable | Purpose |
 |----------|---------|
 | `CLAUDE_API_KEY` | Claude API key (required) |
+| `CLAUDE_AGENT_VERBOSE` | Enable verbose debug logging to file at `~/.claude/agents_server/cli_stderr.log` |
 | `CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK` | Skip CLI version validation (dev only) |
 | Custom variables | Passed to CLI process via `WithEnv()` |
 
@@ -342,14 +347,14 @@ if err != nil {
 
 | Feature | Python | Go |
 |---------|--------|-----|
-| One-shot queries | ✅ | ✅ (planned) |
-| Interactive client | ✅ | ✅ (planned) |
-| Tool permissions | ✅ | ✅ (planned) |
-| Hook system | ✅ | ✅ (planned) |
-| MCP servers | ✅ | ✅ (planned) |
-| Streaming | ✅ | ✅ (planned) |
-| CLI discovery | ✅ | ✅ (planned) |
-| Error types | ✅ | ✅ (planned) |
+| One-shot queries | ✅ | ✅ |
+| Interactive client | ✅ | ✅ |
+| Tool permissions | ✅ | ✅ |
+| Hook system | ✅ | ✅ |
+| MCP servers | ✅ | ✅ |
+| Streaming | ✅ | ✅ |
+| CLI discovery | ✅ | ✅ |
+| Error types | ✅ | ✅ |
 
 **Key Differences:**
 - **Concurrency**: Go uses channels + goroutines instead of async/await
@@ -410,29 +415,9 @@ make fmt
 
 ## Known Limitations
 
-- 🚧 Still in development
 - No automatic CLI version updates
-- Limited Windows support (coming soon)
-- No gRPC transport alternative (coming soon)
-
-## Roadmap
-
-### Phase 1 (Current)
-- ✅ Planning and architecture
-- 🚧 Core implementation (types, transport, protocol)
-- ⬜ Testing and documentation
-
-### Phase 2
-- In-process MCP server improvements
-- Performance profiling and optimization
-- Advanced CLI discovery
-- Windows native support
-
-### Phase 3
-- Type code generation from schemas
-- gRPC transport alternative
-- Metrics and observability
-- Integration with popular frameworks
+- Limited Windows support
+- No gRPC transport alternative
 
 ## Contributing
 
@@ -470,8 +455,7 @@ For issues with:
 - [Official Python SDK](https://github.com/anthropics/claude-agent-sdk-python)
 - [Claude Code Documentation](https://claude.com/docs)
 - [Claude API Documentation](https://docs.anthropic.com)
-- [Implementation Plan](./GO_PORT_PLAN.md)
 
 ---
 
-**Status**: 🚧 In Development | **Go Version**: 1.24+ | **Last Updated**: October 2024
+**Status**: ✅ Production Ready - v0.1.0 | **Go Version**: 1.24+ | **Last Updated**: October 2025
