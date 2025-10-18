@@ -39,3 +39,4 @@ examples/*/*.exe
 *.pprof
 GO_PORT_PLAN.md
 claude_docs/
+.claude/
