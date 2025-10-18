@@ -106,9 +106,7 @@ This is the first stable release of the Claude Agent SDK for Go, porting all cor
 - **All Linters**: Passing
 
 ### Supported Go Versions
-- Go 1.20+
-- Go 1.21
-- Go 1.22
+- Go 1.24+
 
 ### Known Limitations
 - Windows support is minimal (subprocess CLI discovery)
@@ -149,11 +147,3 @@ None - this is the first release.
 ### Acknowledgments
 - Official [Claude Agent SDK for Python](https://github.com/anthropics/claude-agent-sdk-python)
 - Anthropic for the Claude API and Claude Code CLI
-
----
-
-For detailed implementation information, see:
-- [GO_PORT_PLAN.md](./GO_PORT_PLAN.md) - Implementation plan
-- [PHASE_6_SUMMARY.md](./PHASE_6_SUMMARY.md) - Testing phase details
-- [README.md](./README.md) - User documentation
-- [tests/README.md](./tests/README.md) - Testing documentation
