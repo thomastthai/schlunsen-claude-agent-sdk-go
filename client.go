@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/schlunsen/claude-agent-sdk-go/internal"
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/internal/transport"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
@@ -69,6 +70,7 @@ type Client struct {
 	options   *types.ClaudeAgentOptions
 	transport transport.Transport
 	query     *internal.Query
+	logger    *log.Logger
 
 	mu        sync.Mutex
 	connected bool
@@ -130,15 +132,19 @@ func NewClient(ctx context.Context, options *types.ClaudeAgentOptions) (*Client,
 		}
 	}
 
-	// Create subprocess transport
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env)
-
 	// Create client context
 	clientCtx, cancel := context.WithCancel(ctx)
+
+	// Create logger
+	logger := log.NewLogger(options.Verbose)
+
+	// Create subprocess transport
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger)
 
 	return &Client{
 		options:   options,
 		transport: transportInst,
+		logger:    logger,
 		connected: false,
 		ctx:       clientCtx,
 		cancel:    cancel,
@@ -172,28 +178,38 @@ func (c *Client) Connect(ctx context.Context) error {
 		return types.NewControlProtocolError("client already connected")
 	}
 
+	c.logger.Info("Connecting to Claude CLI...")
+
 	// Connect transport
 	if err := c.transport.Connect(ctx); err != nil {
+		c.logger.Error("Failed to connect transport: %v", err)
 		return types.NewCLIConnectionErrorWithCause("failed to connect to Claude CLI", err)
 	}
+	c.logger.Debug("Transport connected successfully")
 
 	// Create query handler in streaming mode
-	c.query = internal.NewQuery(ctx, c.transport, c.options, true)
+	c.query = internal.NewQuery(ctx, c.transport, c.options, c.logger, true)
+	c.logger.Debug("Query handler created")
 
 	// Start message processing
 	if err := c.query.Start(ctx); err != nil {
+		c.logger.Error("Failed to start message processing: %v", err)
 		_ = c.transport.Close(ctx)
 		return err
 	}
+	c.logger.Debug("Message processing started")
 
 	// Initialize control protocol
 	if _, err := c.query.Initialize(ctx); err != nil {
+		c.logger.Error("Failed to initialize control protocol: %v", err)
 		_ = c.query.Stop(ctx)
 		_ = c.transport.Close(ctx)
 		return types.NewControlProtocolErrorWithCause("failed to initialize control protocol", err)
 	}
+	c.logger.Debug("Control protocol initialized")
 
 	c.connected = true
+	c.logger.Info("Successfully connected to Claude")
 	return nil
 }
 
@@ -353,11 +369,14 @@ func (c *Client) Close(ctx context.Context) error {
 		return nil
 	}
 
+	c.logger.Info("Closing Claude connection...")
+
 	var errs []error
 
 	// Stop query handler
 	if c.query != nil {
 		if err := c.query.Stop(ctx); err != nil {
+			c.logger.Warning("Error stopping query handler: %v", err)
 			errs = append(errs, err)
 		}
 		c.query = nil
@@ -366,6 +385,7 @@ func (c *Client) Close(ctx context.Context) error {
 	// Close transport
 	if c.transport != nil {
 		if err := c.transport.Close(ctx); err != nil {
+			c.logger.Warning("Error closing transport: %v", err)
 			errs = append(errs, err)
 		}
 	}
@@ -377,6 +397,7 @@ func (c *Client) Close(ctx context.Context) error {
 	}
 
 	c.connected = false
+	c.logger.Debug("Connection closed")
 
 	// Return first error if any
 	if len(errs) > 0 {

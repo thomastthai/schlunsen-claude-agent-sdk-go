@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/schlunsen/claude-agent-sdk-go/internal"
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/internal/transport"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
@@ -99,8 +100,11 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 		}
 	}
 
+	// Create logger (non-verbose for query function)
+	logger := log.NewLogger(false)
+
 	// Create subprocess transport
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env)
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger)
 
 	// Connect to CLI
 	if err := transportInst.Connect(ctx); err != nil {
@@ -108,7 +112,7 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 	}
 
 	// Create query handler (non-streaming mode)
-	queryHandler := internal.NewQuery(ctx, transportInst, options, false)
+	queryHandler := internal.NewQuery(ctx, transportInst, options, logger, false)
 
 	// Start message processing
 	if err := queryHandler.Start(ctx); err != nil {

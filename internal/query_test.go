@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
 
@@ -89,7 +90,8 @@ func TestNewQuery(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if query == nil {
 		t.Fatal("NewQuery returned nil")
@@ -130,7 +132,8 @@ func TestInitialize(t *testing.T) {
 		},
 	)
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -166,13 +169,11 @@ func TestInitialize(t *testing.T) {
 				controlResponse := &types.SystemMessage{
 					Type:    "control_response",
 					Subtype: "control_response",
-					Data: map[string]interface{}{
+					Response: map[string]interface{}{
+						"subtype":    "success",
+						"request_id": requestID,
 						"response": map[string]interface{}{
-							"subtype":    "success",
-							"request_id": requestID,
-							"response": map[string]interface{}{
-								"capabilities": []string{"hooks", "permissions"},
-							},
+							"capabilities": []string{"hooks", "permissions"},
 						},
 					},
 				}
@@ -202,7 +203,8 @@ func TestInitialize(t *testing.T) {
 	}
 
 	// Test non-streaming mode
-	nonStreamingQuery := NewQuery(ctx, transport, opts, false)
+	logger = log.NewLogger(false) // Non-verbose for tests
+	nonStreamingQuery := NewQuery(ctx, transport, opts, logger, false)
 	result, err = nonStreamingQuery.Initialize(ctx)
 	if err != nil {
 		t.Errorf("unexpected error for non-streaming mode: %v", err)
@@ -218,7 +220,8 @@ func TestErrorResponse(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -261,12 +264,10 @@ func TestErrorResponse(t *testing.T) {
 	controlResponse := &types.SystemMessage{
 		Type:    "control_response",
 		Subtype: "control_response",
-		Data: map[string]interface{}{
-			"response": map[string]interface{}{
-				"subtype":    "error",
-				"request_id": requestID,
-				"error":      "invalid permission mode",
-			},
+		Response: map[string]interface{}{
+			"subtype":    "error",
+			"request_id": requestID,
+			"error":      "invalid permission mode",
 		},
 	}
 
@@ -292,7 +293,8 @@ func TestQueryStartStop(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	// Start the query
 	if err := query.Start(ctx); err != nil {
@@ -400,7 +402,8 @@ func TestHandlePermissionRequest(t *testing.T) {
 				},
 			)
 
-			query := NewQuery(ctx, transport, opts, true)
+			logger := log.NewLogger(false) // Non-verbose for tests
+			query := NewQuery(ctx, transport, opts, logger, true)
 
 			result, err := query.handlePermissionRequest(tt.requestData)
 			if tt.expectedError && err == nil {
@@ -445,7 +448,8 @@ func TestHandleHookCallback(t *testing.T) {
 	}
 
 	opts := types.NewClaudeAgentOptions()
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	// Register a hook callback
 	callback := func(ctx context.Context, input interface{}, toolUseID *string, hookCtx types.HookContext) (interface{}, error) {
@@ -485,7 +489,8 @@ func TestHandleMCPMessage(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	// Add a mock MCP server
 	mockServer := &mockMCPServer{
@@ -548,7 +553,8 @@ func TestRequestResponseCorrelation(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -599,13 +605,11 @@ func TestRequestResponseCorrelation(t *testing.T) {
 	controlResponse := &types.SystemMessage{
 		Type:    "control_response",
 		Subtype: "control_response",
-		Data: map[string]interface{}{
+		Response: map[string]interface{}{
+			"subtype":    "success",
+			"request_id": requestID,
 			"response": map[string]interface{}{
-				"subtype":    "success",
-				"request_id": requestID,
-				"response": map[string]interface{}{
-					"mode": "default",
-				},
+				"mode": "default",
 			},
 		},
 	}
@@ -631,7 +635,8 @@ func TestMessageRouting(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -669,7 +674,8 @@ func TestControlMessageFiltering(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -684,11 +690,8 @@ func TestControlMessageFiltering(t *testing.T) {
 	controlRequest := &types.SystemMessage{
 		Type:    "control_request",
 		Subtype: "control_request",
-		Data: map[string]interface{}{
-			"request_id": "test_req_1",
-			"request": map[string]interface{}{
-				"subtype": "interrupt",
-			},
+		Request: map[string]interface{}{
+			"subtype": "interrupt",
 		},
 	}
 
@@ -721,7 +724,8 @@ func TestConcurrentRequests(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -766,12 +770,10 @@ func TestConcurrentRequests(t *testing.T) {
 					controlResponse := &types.SystemMessage{
 						Type:    "control_response",
 						Subtype: "control_response",
-						Data: map[string]interface{}{
-							"response": map[string]interface{}{
-								"subtype":    "success",
-								"request_id": requestID,
-								"response":   map[string]interface{}{},
-							},
+						Response: map[string]interface{}{
+							"subtype":    "success",
+							"request_id": requestID,
+							"response":   map[string]interface{}{},
 						},
 					}
 					transport.sendMessage(controlResponse)
@@ -826,7 +828,8 @@ func TestContextCancellation(t *testing.T) {
 	transport := newMockTransport()
 	opts := types.NewClaudeAgentOptions()
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	if err := query.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -867,7 +870,8 @@ func TestCallbackTimeouts(t *testing.T) {
 		},
 	)
 
-	query := NewQuery(ctx, transport, opts, true)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	query := NewQuery(ctx, transport, opts, logger, true)
 
 	requestData := map[string]interface{}{
 		"subtype":   "can_use_tool",
