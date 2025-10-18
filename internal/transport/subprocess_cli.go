@@ -336,7 +336,9 @@ func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 		fmt.Fprintf(os.Stderr, "[SDK] Failed to open stderr log file: %v\n", err)
 		return
 	}
-	defer logFile.Close()
+	defer func() {
+		_ = logFile.Close()
+	}()
 
 	reader := NewJSONLineReader(t.stderr)
 	for {
@@ -353,8 +355,8 @@ func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 
 		// Log stderr output to file
 		if len(line) > 0 {
-			fmt.Fprintf(logFile, "[Claude CLI stderr]: %s\n", string(line))
-			logFile.Sync() // Flush to disk immediately
+			_, _ = fmt.Fprintf(logFile, "[Claude CLI stderr]: %s\n", string(line))
+			_ = logFile.Sync() // Flush to disk immediately
 		}
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
 
@@ -291,7 +292,8 @@ func TestSubprocessCLITransportConnect(t *testing.T) {
 		t.Skip("No echo command available for testing")
 	}
 
-	transport := NewSubprocessCLITransport(echoPath, "", nil)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	transport := NewSubprocessCLITransport(echoPath, "", nil, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -320,7 +322,8 @@ func TestSubprocessCLITransportWrite(t *testing.T) {
 		t.Skip("No cat command available for testing")
 	}
 
-	transport := NewSubprocessCLITransport(catPath, "", nil)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	transport := NewSubprocessCLITransport(catPath, "", nil, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -347,7 +350,8 @@ func TestSubprocessCLITransportClose(t *testing.T) {
 		t.Skip("No echo command available for testing")
 	}
 
-	transport := NewSubprocessCLITransport(echoPath, "", nil)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	transport := NewSubprocessCLITransport(echoPath, "", nil, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -435,7 +439,8 @@ func TestSubprocessEnvironment(t *testing.T) {
 		"ANOTHER_VAR": "another_value",
 	}
 
-	transport := NewSubprocessCLITransport(echoPath, "", env)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	transport := NewSubprocessCLITransport(echoPath, "", env, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -524,7 +529,8 @@ func TestIntegrationSubprocessCLI(t *testing.T) {
 		t.Skipf("Claude CLI not found, skipping integration test: %v", err)
 	}
 
-	transport := NewSubprocessCLITransport(cliPath, "", nil)
+	logger := log.NewLogger(false) // Non-verbose for tests
+	transport := NewSubprocessCLITransport(cliPath, "", nil, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
