@@ -407,7 +407,7 @@ func TestHandlePermissionRequest(t *testing.T) {
 			)
 
 			logger := log.NewLogger(false) // Non-verbose for tests
-	query := NewQuery(ctx, transport, opts, logger, true)
+			query := NewQuery(ctx, transport, opts, logger, true)
 
 			result, err := query.handlePermissionRequest(tt.requestData)
 			if tt.expectedError && err == nil {
