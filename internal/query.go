@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/internal/transport"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
@@ -20,6 +21,7 @@ type Query struct {
 	transport transport.Transport
 	ctx       context.Context
 	cancel    context.CancelFunc
+	logger    *log.Logger
 
 	// Request tracking
 	mu                 sync.Mutex
@@ -50,13 +52,14 @@ type responseResult struct {
 }
 
 // NewQuery creates a new Query handler.
-func NewQuery(ctx context.Context, transport transport.Transport, opts *types.ClaudeAgentOptions, isStreamingMode bool) *Query {
+func NewQuery(ctx context.Context, transport transport.Transport, opts *types.ClaudeAgentOptions, logger *log.Logger, isStreamingMode bool) *Query {
 	queryCtx, cancel := context.WithCancel(ctx)
 
 	q := &Query{
 		transport:       transport,
 		ctx:             queryCtx,
 		cancel:          cancel,
+		logger:          logger,
 		requestMap:      make(map[string]chan responseResult),
 		hookCallbacks:   make(map[string]types.HookCallbackFunc),
 		messagesChan:    make(chan types.Message, 100),
@@ -83,6 +86,8 @@ func (q *Query) Initialize(ctx context.Context) (map[string]interface{}, error) 
 	if q.initialized {
 		return q.initializeResult, nil
 	}
+
+	q.logger.Debug("Initializing control protocol...")
 
 	// Build hooks configuration
 	hooksConfig := make(map[string]interface{})
@@ -122,11 +127,13 @@ func (q *Query) Initialize(ctx context.Context) (map[string]interface{}, error) 
 
 	result, err := q.sendControlRequest(ctx, request)
 	if err != nil {
+		q.logger.Error("Control protocol initialization failed: %v", err)
 		return nil, types.NewControlProtocolErrorWithCause("initialization failed", err)
 	}
 
 	q.initialized = true
 	q.initializeResult = result
+	q.logger.Debug("Control protocol initialized successfully")
 	return result, nil
 }
 
@@ -183,21 +190,26 @@ func (q *Query) messageLoop() {
 	defer close(q.readLoopDone)
 
 	messages := q.transport.ReadMessages(q.ctx)
+	q.logger.Debug("Message routing loop started")
 
 	for {
 		select {
 		case <-q.ctx.Done():
+			q.logger.Debug("Message loop stopped: context cancelled")
 			return
 		case <-q.stopChan:
+			q.logger.Debug("Message loop stopped: stop signal received")
 			return
 		case msg, ok := <-messages:
 			if !ok {
+				q.logger.Debug("Message loop stopped: transport channel closed")
 				// Channel closed - transport has stopped
 				return
 			}
 
 			// Route message based on type
 			if err := q.routeMessage(msg); err != nil {
+				q.logger.Warning("Message routing error: %v", err)
 				// Log error but continue processing
 				// In a production system, we might want to report this via an error channel
 				continue
@@ -210,6 +222,7 @@ func (q *Query) messageLoop() {
 func (q *Query) routeMessage(msg types.Message) error {
 	// Check message type
 	msgType := msg.GetMessageType()
+	q.logger.Debug("Routing message: type=%s", msgType)
 
 	// Handle control responses
 	if msgType == "control_response" {
@@ -221,6 +234,7 @@ func (q *Query) routeMessage(msg types.Message) error {
 
 	// Handle control requests
 	if msgType == "control_request" {
+		q.logger.Debug("Handling control request from CLI")
 		if sysMsg, ok := msg.(*types.SystemMessage); ok {
 			go q.handleControlRequest(sysMsg)
 			return nil
@@ -239,10 +253,10 @@ func (q *Query) routeMessage(msg types.Message) error {
 
 // handleControlResponse handles a control response message.
 func (q *Query) handleControlResponse(msg *types.SystemMessage) error {
-	// Parse response
-	responseData, ok := msg.Data["response"].(map[string]interface{})
-	if !ok {
-		return types.NewControlProtocolError("invalid control response format")
+	// Parse response - use msg.Response for control_response messages
+	responseData := msg.Response
+	if responseData == nil {
+		return types.NewControlProtocolError("invalid control response format: response field is nil")
 	}
 
 	requestID, ok := responseData["request_id"].(string)
@@ -289,8 +303,19 @@ func (q *Query) handleControlResponse(msg *types.SystemMessage) error {
 
 // handleControlRequest handles an incoming control request from CLI.
 func (q *Query) handleControlRequest(msg *types.SystemMessage) {
+	// For control_request from CLI, the format might be different
+	// Try msg.Request first (for new format), then fall back to msg.Data
 	requestID, _ := msg.Data["request_id"].(string)
-	requestData, _ := msg.Data["request"].(map[string]interface{})
+	if requestID == "" {
+		requestID, _ = msg.Request["request_id"].(string)
+	}
+
+	var requestData map[string]interface{}
+	if msg.Request != nil {
+		requestData = msg.Request
+	} else {
+		requestData, _ = msg.Data["request"].(map[string]interface{})
+	}
 
 	if requestID == "" || requestData == nil {
 		q.sendErrorResponse(requestID, "invalid control request format")

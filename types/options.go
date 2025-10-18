@@ -124,6 +124,9 @@ type ClaudeAgentOptions struct {
 	// Agent definitions
 	Agents map[string]AgentDefinition `json:"agents,omitempty"`
 
+	// Debug and diagnostics
+	Verbose bool `json:"-"` // Enable verbose debug logging
+
 	// Callbacks (not marshaled to JSON)
 	CanUseTool CanUseToolFunc              `json:"-"`
 	Hooks      map[HookEvent][]HookMatcher `json:"-"`
@@ -338,5 +341,11 @@ func (o *ClaudeAgentOptions) WithHook(event HookEvent, matcher HookMatcher) *Cla
 // WithStderr sets the stderr callback.
 func (o *ClaudeAgentOptions) WithStderr(callback StderrCallbackFunc) *ClaudeAgentOptions {
 	o.Stderr = callback
+	return o
+}
+
+// WithVerbose enables or disables verbose debug logging.
+func (o *ClaudeAgentOptions) WithVerbose(enabled bool) *ClaudeAgentOptions {
+	o.Verbose = enabled
 	return o
 }

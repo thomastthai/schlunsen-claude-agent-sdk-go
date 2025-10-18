@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+// SystemMessageSubtype constants for common system message subtypes
+const (
+	SystemSubtypeInit        = "init"
+	SystemSubtypeWarning     = "warning"
+	SystemSubtypeError       = "error"
+	SystemSubtypeInfo        = "info"
+	SystemSubtypeDebug       = "debug"
+	SystemSubtypeSessionEnd  = "session_end"
+	SystemSubtypeSessionInfo = "session_info"
+)
+
 // ContentBlock is an interface for all content block types.
 // Content blocks can be text, thinking, tool use, or tool result blocks.
 type ContentBlock interface {
@@ -112,6 +123,7 @@ func UnmarshalContentBlock(data []byte) (ContentBlock, error) {
 // Message is an interface for all message types from Claude.
 type Message interface {
 	GetMessageType() string
+	ShouldDisplayToUser() bool
 	isMessage()
 }
 
@@ -125,6 +137,11 @@ type UserMessage struct {
 // GetMessageType returns the type of the message.
 func (m *UserMessage) GetMessageType() string {
 	return m.Type
+}
+
+// ShouldDisplayToUser returns true for user messages (always display).
+func (m *UserMessage) ShouldDisplayToUser() bool {
+	return true
 }
 
 func (m *UserMessage) isMessage() {}
@@ -179,6 +196,11 @@ type AssistantMessage struct {
 // GetMessageType returns the type of the message.
 func (m *AssistantMessage) GetMessageType() string {
 	return m.Type
+}
+
+// ShouldDisplayToUser returns true for assistant messages (always display).
+func (m *AssistantMessage) ShouldDisplayToUser() bool {
+	return true
 }
 
 func (m *AssistantMessage) isMessage() {}
@@ -247,9 +269,11 @@ func (m *AssistantMessage) MarshalJSON() ([]byte, error) {
 
 // SystemMessage represents a system message with metadata.
 type SystemMessage struct {
-	Type    string                 `json:"type"`
-	Subtype string                 `json:"subtype"`
-	Data    map[string]interface{} `json:"data"`
+	Type     string                 `json:"type"`
+	Subtype  string                 `json:"subtype,omitempty"`
+	Data     map[string]interface{} `json:"data,omitempty"`
+	Response map[string]interface{} `json:"response,omitempty"` // For control_response messages
+	Request  map[string]interface{} `json:"request,omitempty"`  // For control_request messages
 }
 
 // GetMessageType returns the type of the message.
@@ -258,6 +282,37 @@ func (m *SystemMessage) GetMessageType() string {
 }
 
 func (m *SystemMessage) isMessage() {}
+
+// IsInit returns true if this is a system init message.
+func (m *SystemMessage) IsInit() bool {
+	return m.Subtype == SystemSubtypeInit
+}
+
+// IsWarning returns true if this is a system warning message.
+func (m *SystemMessage) IsWarning() bool {
+	return m.Subtype == SystemSubtypeWarning
+}
+
+// IsError returns true if this is a system error message.
+func (m *SystemMessage) IsError() bool {
+	return m.Subtype == SystemSubtypeError
+}
+
+// IsInfo returns true if this is a system info message.
+func (m *SystemMessage) IsInfo() bool {
+	return m.Subtype == SystemSubtypeInfo
+}
+
+// IsDebug returns true if this is a system debug message.
+func (m *SystemMessage) IsDebug() bool {
+	return m.Subtype == SystemSubtypeDebug
+}
+
+// ShouldDisplayToUser returns true if this system message should be shown to the user.
+// By default, init and debug messages are not shown to users.
+func (m *SystemMessage) ShouldDisplayToUser() bool {
+	return m.Subtype != SystemSubtypeInit && m.Subtype != SystemSubtypeDebug
+}
 
 // ResultMessage represents a result message with cost and usage information.
 type ResultMessage struct {
@@ -278,6 +333,11 @@ func (m *ResultMessage) GetMessageType() string {
 	return m.Type
 }
 
+// ShouldDisplayToUser returns false for result messages (metadata only).
+func (m *ResultMessage) ShouldDisplayToUser() bool {
+	return false
+}
+
 func (m *ResultMessage) isMessage() {}
 
 // StreamEvent represents a stream event for partial message updates during streaming.
@@ -292,6 +352,11 @@ type StreamEvent struct {
 // GetMessageType returns the type of the message.
 func (m *StreamEvent) GetMessageType() string {
 	return m.Type
+}
+
+// ShouldDisplayToUser returns false for stream events (internal only).
+func (m *StreamEvent) ShouldDisplayToUser() bool {
+	return false
 }
 
 func (m *StreamEvent) isMessage() {}
@@ -318,7 +383,8 @@ func UnmarshalMessage(data []byte) (Message, error) {
 			return nil, NewJSONDecodeErrorWithCause("failed to unmarshal assistant message", string(data), err)
 		}
 		return &msg, nil
-	case "system":
+	case "system", "control_request", "control_response":
+		// system, control_request, and control_response are all SystemMessage types
 		var msg SystemMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
 			return nil, NewJSONDecodeErrorWithCause("failed to unmarshal system message", string(data), err)

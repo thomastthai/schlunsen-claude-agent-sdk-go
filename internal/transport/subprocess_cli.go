@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"sync"
 
+	"github.com/schlunsen/claude-agent-sdk-go/internal/log"
 	"github.com/schlunsen/claude-agent-sdk-go/types"
 )
 
@@ -22,6 +23,7 @@ type SubprocessCLITransport struct {
 	cliPath string
 	cwd     string
 	env     map[string]string
+	logger  *log.Logger
 
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -47,11 +49,13 @@ type SubprocessCLITransport struct {
 // The cliPath should point to the claude binary.
 // The cwd is the working directory for the subprocess (empty string uses current directory).
 // The env map contains additional environment variables to set for the subprocess.
-func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string) *SubprocessCLITransport {
+// The logger is used for debug/diagnostic output.
+func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string, logger *log.Logger) *SubprocessCLITransport {
 	return &SubprocessCLITransport{
 		cliPath:  cliPath,
 		cwd:      cwd,
 		env:      env,
+		logger:   logger,
 		messages: make(chan types.Message, 10), // Buffered channel for smooth streaming
 	}
 }
@@ -66,12 +70,14 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 		return nil // Already connected
 	}
 
+	t.logger.Debug("Starting Claude CLI subprocess: %s", t.cliPath)
+
 	// Create cancellable context
 	t.ctx, t.cancel = context.WithCancel(ctx)
 
-	// Build command: claude --print --input-format=stream-json --output-format=stream-json --verbose
+	// Build command: claude --input-format=stream-json --output-format=stream-json --verbose
+	// Note: We don't use --print in streaming mode; --print is for single-shot queries
 	t.cmd = exec.CommandContext(t.ctx, t.cliPath,
-		"--print",
 		"--input-format=stream-json",
 		"--output-format=stream-json",
 		"--verbose")
@@ -114,8 +120,10 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 
 	// Start the process
 	if err := t.cmd.Start(); err != nil {
+		t.logger.Error("Failed to start subprocess: %v", err)
 		return types.NewCLIConnectionErrorWithCause("failed to start subprocess", err)
 	}
+	t.logger.Debug("CLI subprocess started successfully (PID: %d)", t.cmd.Process.Pid)
 
 	// Create JSON line writer for stdin
 	t.writer = NewJSONLineWriter(t.stdin)
@@ -123,8 +131,12 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 	// Launch message reader loop in goroutine
 	go t.messageReaderLoop(t.ctx)
 
+	// Launch stderr reader for debugging
+	go t.readStderr(t.ctx)
+
 	// Mark as ready
 	t.ready = true
+	t.logger.Debug("Transport ready for communication")
 
 	return nil
 }
@@ -135,12 +147,14 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 func (t *SubprocessCLITransport) messageReaderLoop(ctx context.Context) {
 	defer close(t.messages)
 
+	t.logger.Debug("Message reader loop started")
 	reader := NewJSONLineReader(t.stdout)
 
 	for {
 		// Check for context cancellation
 		select {
 		case <-ctx.Done():
+			t.logger.Debug("Message reader loop stopped: context cancelled")
 			return
 		default:
 		}
@@ -149,10 +163,12 @@ func (t *SubprocessCLITransport) messageReaderLoop(ctx context.Context) {
 		line, err := reader.ReadLine()
 		if err != nil {
 			if err == io.EOF {
+				t.logger.Debug("Message reader loop stopped: EOF from CLI")
 				// Normal end of stream
 				return
 			}
 
+			t.logger.Error("Failed to read from CLI stdout: %v", err)
 			// Store error and return
 			t.OnError(types.NewJSONDecodeErrorWithCause(
 				"failed to read JSON line from subprocess",
@@ -170,10 +186,13 @@ func (t *SubprocessCLITransport) messageReaderLoop(ctx context.Context) {
 		// Parse JSON into message
 		msg, err := types.UnmarshalMessage(line)
 		if err != nil {
+			t.logger.Warning("Failed to parse message from CLI: %v", err)
 			// Store parse error but continue reading
 			t.OnError(err)
 			continue
 		}
+
+		t.logger.Debug("Received message from CLI: type=%s", msg.GetMessageType())
 
 		// Send message to channel (respect context cancellation)
 		select {
@@ -199,10 +218,13 @@ func (t *SubprocessCLITransport) Write(ctx context.Context, data string) error {
 		return types.NewCLIConnectionError("stdin writer not initialized")
 	}
 
+	t.logger.Debug("Sending message to CLI stdin")
+
 	// Write JSON line (includes newline and flush)
 	if err := t.writer.WriteLine(data); err != nil {
 		t.ready = false
 		t.err = types.NewCLIConnectionErrorWithCause("failed to write to subprocess stdin", err)
+		t.logger.Error("Failed to write to CLI stdin: %v", err)
 		return t.err
 	}
 
@@ -225,6 +247,7 @@ func (t *SubprocessCLITransport) Close(ctx context.Context) error {
 		return nil // Not connected
 	}
 
+	t.logger.Debug("Closing CLI subprocess...")
 	t.ready = false
 
 	// Cancel the context to stop goroutines
@@ -299,11 +322,21 @@ func (t *SubprocessCLITransport) GetError() error {
 
 // readStderr reads stderr output in a goroutine for debugging.
 // This is a helper function for monitoring subprocess errors.
-// nolint:unused
 func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 	if t.stderr == nil {
 		return
 	}
+
+	// Open log file for stderr output
+	homeDir, _ := os.UserHomeDir()
+	logPath := fmt.Sprintf("%s/.claude/agents_server/cli_stderr.log", homeDir)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		// Fallback to stderr if file can't be opened
+		fmt.Fprintf(os.Stderr, "[SDK] Failed to open stderr log file: %v\n", err)
+		return
+	}
+	defer logFile.Close()
 
 	reader := NewJSONLineReader(t.stderr)
 	for {
@@ -318,8 +351,10 @@ func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 			return
 		}
 
-		// Could log or handle stderr here
-		// For now, we just read and discard
-		_ = line
+		// Log stderr output to file
+		if len(line) > 0 {
+			fmt.Fprintf(logFile, "[Claude CLI stderr]: %s\n", string(line))
+			logFile.Sync() // Flush to disk immediately
+		}
 	}
 }

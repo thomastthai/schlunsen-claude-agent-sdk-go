@@ -18,9 +18,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create options for the interactive client
-	opts := types.NewClaudeAgentOptions().
-		WithModel("claude-3-5-sonnet-latest").
-		WithPermissionMode(types.PermissionModeBypassPermissions)
+	opts := types.NewClaudeAgentOptions()
 
 	// Create client
 	client, err := claude.NewClient(ctx, opts)
@@ -29,7 +27,7 @@ func main() {
 	}
 
 	// Connect to Claude
-	fmt.Println("Connecting to Claude...")
+	fmt.Println("Connecting to Claude....")
 	if err := client.Connect(ctx); err != nil {
 		log.Fatalf("Failed to connect: %v", err)
 	}
