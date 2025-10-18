@@ -169,13 +169,11 @@ func TestInitialize(t *testing.T) {
 				controlResponse := &types.SystemMessage{
 					Type:    "control_response",
 					Subtype: "control_response",
-					Data: map[string]interface{}{
+					Response: map[string]interface{}{
+						"subtype":    "success",
+						"request_id": requestID,
 						"response": map[string]interface{}{
-							"subtype":    "success",
-							"request_id": requestID,
-							"response": map[string]interface{}{
-								"capabilities": []string{"hooks", "permissions"},
-							},
+							"capabilities": []string{"hooks", "permissions"},
 						},
 					},
 				}
@@ -266,12 +264,10 @@ func TestErrorResponse(t *testing.T) {
 	controlResponse := &types.SystemMessage{
 		Type:    "control_response",
 		Subtype: "control_response",
-		Data: map[string]interface{}{
-			"response": map[string]interface{}{
-				"subtype":    "error",
-				"request_id": requestID,
-				"error":      "invalid permission mode",
-			},
+		Response: map[string]interface{}{
+			"subtype":    "error",
+			"request_id": requestID,
+			"error":      "invalid permission mode",
 		},
 	}
 
@@ -609,13 +605,11 @@ func TestRequestResponseCorrelation(t *testing.T) {
 	controlResponse := &types.SystemMessage{
 		Type:    "control_response",
 		Subtype: "control_response",
-		Data: map[string]interface{}{
+		Response: map[string]interface{}{
+			"subtype":    "success",
+			"request_id": requestID,
 			"response": map[string]interface{}{
-				"subtype":    "success",
-				"request_id": requestID,
-				"response": map[string]interface{}{
-					"mode": "default",
-				},
+				"mode": "default",
 			},
 		},
 	}
@@ -696,11 +690,8 @@ func TestControlMessageFiltering(t *testing.T) {
 	controlRequest := &types.SystemMessage{
 		Type:    "control_request",
 		Subtype: "control_request",
-		Data: map[string]interface{}{
-			"request_id": "test_req_1",
-			"request": map[string]interface{}{
-				"subtype": "interrupt",
-			},
+		Request: map[string]interface{}{
+			"subtype": "interrupt",
 		},
 	}
 
@@ -779,12 +770,10 @@ func TestConcurrentRequests(t *testing.T) {
 					controlResponse := &types.SystemMessage{
 						Type:    "control_response",
 						Subtype: "control_response",
-						Data: map[string]interface{}{
-							"response": map[string]interface{}{
-								"subtype":    "success",
-								"request_id": requestID,
-								"response":   map[string]interface{}{},
-							},
+						Response: map[string]interface{}{
+							"subtype":    "success",
+							"request_id": requestID,
+							"response":   map[string]interface{}{},
 						},
 					}
 					transport.sendMessage(controlResponse)

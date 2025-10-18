@@ -390,9 +390,11 @@ func TestMessageReaderLoop(t *testing.T) {
 	}()
 
 	// Create transport with custom stdout
+	logger := log.NewLogger(false) // Non-verbose for tests
 	transport := &SubprocessCLITransport{
 		messages: make(chan types.Message, 10),
 		ready:    true,
+		logger:   logger,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
