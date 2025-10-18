@@ -131,6 +131,11 @@ None - this is the first release.
   - Handle nested `message.content` format from Claude CLI responses
   - Extract model field from nested message structure
   - Fall back to top-level content for backward compatibility
+- Fixed interactive client connection hang and added verbose logging (#10)
+  - Made verbose logging configurable via `CLAUDE_AGENT_VERBOSE` environment variable
+  - Fixed Client.Connect() to wait for control protocol initialization
+  - Added stderr logging to file at `~/.claude/agents_server/cli_stderr.log`
+  - Improved error handling in control protocol initialization
 
 ### Security
 - All tool usage controlled via permission callbacks
