@@ -2,6 +2,30 @@
 
 All notable changes to the Claude Agent SDK for Go are documented in this file.
 
+## [0.2.2] - 2025-10-19
+
+### Added
+- Permission mode support with proper CLI flag passing
+- Verbose logging option that can be enabled via `ClaudeAgentOptions.Verbose`
+- System prompt support via `--system-prompt` flag to Claude CLI
+- Permission prompt tool flag (`--permission-prompt-tool stdio`) for control protocol
+
+### Fixed
+- Control request handling for CLI-initiated requests without `request_id`
+  - SDK now automatically generates request IDs for CLI-initiated control requests
+  - Fixes permission callbacks that were failing silently
+- Request ID parsing from top-level field in control_request messages
+  - CLI sends `request_id` at top level, not inside request object
+  - Fixes issue where control responses weren't matched to requests
+  - Permission approvals are now properly recognized by CLI
+- Client now properly passes options to transport layer
+- Control protocol initialization and bidirectional communication
+
+### Changed
+- Enhanced control request logging for better debugging
+- Updated `SubprocessCLITransport` to accept and use `ClaudeAgentOptions`
+- Improved `SystemMessage` type with `RequestID` field for control protocol
+
 ## [0.1.0] - 2025-10-18
 
 ### Initial Release - Complete Port from Python SDK
