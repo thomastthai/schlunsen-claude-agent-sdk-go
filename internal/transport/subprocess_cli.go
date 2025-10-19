@@ -25,6 +25,7 @@ type SubprocessCLITransport struct {
 	env             map[string]string
 	logger          *log.Logger
 	resumeSessionID string // Optional session ID to resume conversation
+	options         *types.ClaudeAgentOptions // Options for CLI configuration
 
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -52,13 +53,15 @@ type SubprocessCLITransport struct {
 // The env map contains additional environment variables to set for the subprocess.
 // The logger is used for debug/diagnostic output.
 // The resumeSessionID is an optional session ID to resume a previous conversation.
-func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string, logger *log.Logger, resumeSessionID string) *SubprocessCLITransport {
+// The options contains configuration for the CLI.
+func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string, logger *log.Logger, resumeSessionID string, options *types.ClaudeAgentOptions) *SubprocessCLITransport {
 	return &SubprocessCLITransport{
 		cliPath:         cliPath,
 		cwd:             cwd,
 		env:             env,
 		logger:          logger,
 		resumeSessionID: resumeSessionID,
+		options:         options,
 		messages:        make(chan types.Message, 10), // Buffered channel for smooth streaming
 	}
 }
@@ -83,6 +86,12 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 		"--input-format=stream-json",
 		"--output-format=stream-json",
 		"--verbose",
+	}
+
+	// Add permission mode if specified
+	if t.options != nil && t.options.PermissionMode != nil {
+		args = append(args, "--permission-mode", string(*t.options.PermissionMode))
+		t.logger.Debug("Setting permission mode: %s", string(*t.options.PermissionMode))
 	}
 
 	// Add --resume flag if resuming a conversation

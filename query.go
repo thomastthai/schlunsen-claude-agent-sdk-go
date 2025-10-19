@@ -109,8 +109,8 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 		resumeID = *options.Resume
 	}
 
-	// Create subprocess transport with optional resume
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID)
+	// Create subprocess transport with optional resume and options
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID, options)
 
 	// Connect to CLI
 	if err := transportInst.Connect(ctx); err != nil {
