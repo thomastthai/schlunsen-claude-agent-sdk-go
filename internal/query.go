@@ -303,23 +303,15 @@ func (q *Query) handleControlResponse(msg *types.SystemMessage) error {
 
 // handleControlRequest handles an incoming control request from CLI.
 func (q *Query) handleControlRequest(msg *types.SystemMessage) {
-	q.logger.Debug("handleControlRequest: entered, msg.Data=%+v, msg.Request=%+v", msg.Data, msg.Request)
+	q.logger.Debug("handleControlRequest: entered, msg.RequestID='%s', msg.Request=%+v", msg.RequestID, msg.Request)
 
-	// For control_request from CLI, the format might be different
-	// Try msg.Request first (for new format), then fall back to msg.Data
-	requestID, _ := msg.Data["request_id"].(string)
-	if requestID == "" {
-		requestID, _ = msg.Request["request_id"].(string)
-	}
+	// Get request ID from top-level field (CLI sends it here)
+	requestID := msg.RequestID
 
-	var requestData map[string]interface{}
-	if msg.Request != nil {
-		requestData = msg.Request
-	} else {
-		requestData, _ = msg.Data["request"].(map[string]interface{})
-	}
+	// Get request data from Request field
+	requestData := msg.Request
 
-	q.logger.Debug("handleControlRequest: requestID=%s, requestData=%+v", requestID, requestData)
+	q.logger.Debug("handleControlRequest: requestID='%s', requestData=%+v", requestID, requestData)
 
 	// For CLI-initiated requests (like can_use_tool), there might not be a request_id
 	// Generate one if needed
