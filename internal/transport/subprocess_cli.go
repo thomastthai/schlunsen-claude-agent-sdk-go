@@ -88,6 +88,12 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 		"--verbose",
 	}
 
+	// Add permission prompt tool if specified
+	if t.options != nil && t.options.PermissionPromptToolName != nil {
+		args = append(args, "--permission-prompt-tool", *t.options.PermissionPromptToolName)
+		t.logger.Debug("Setting permission prompt tool: %s", *t.options.PermissionPromptToolName)
+	}
+
 	// Add permission mode if specified
 	if t.options != nil && t.options.PermissionMode != nil {
 		args = append(args, "--permission-mode", string(*t.options.PermissionMode))
