@@ -138,8 +138,14 @@ func NewClient(ctx context.Context, options *types.ClaudeAgentOptions) (*Client,
 	// Create logger
 	logger := log.NewLogger(options.Verbose)
 
-	// Create subprocess transport
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger)
+	// Determine resume session ID from options
+	resumeID := ""
+	if options.Resume != nil && *options.Resume != "" {
+		resumeID = *options.Resume
+	}
+
+	// Create subprocess transport with optional resume
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID)
 
 	return &Client{
 		options:   options,
