@@ -303,6 +303,8 @@ func (q *Query) handleControlResponse(msg *types.SystemMessage) error {
 
 // handleControlRequest handles an incoming control request from CLI.
 func (q *Query) handleControlRequest(msg *types.SystemMessage) {
+	q.logger.Debug("handleControlRequest: entered, msg.Data=%+v, msg.Request=%+v", msg.Data, msg.Request)
+
 	// For control_request from CLI, the format might be different
 	// Try msg.Request first (for new format), then fall back to msg.Data
 	requestID, _ := msg.Data["request_id"].(string)
@@ -317,12 +319,16 @@ func (q *Query) handleControlRequest(msg *types.SystemMessage) {
 		requestData, _ = msg.Data["request"].(map[string]interface{})
 	}
 
+	q.logger.Debug("handleControlRequest: requestID=%s, requestData=%+v", requestID, requestData)
+
 	if requestID == "" || requestData == nil {
+		q.logger.Error("handleControlRequest: invalid control request format: requestID=%s, requestData=%+v", requestID, requestData)
 		q.sendErrorResponse(requestID, "invalid control request format")
 		return
 	}
 
 	subtype, _ := requestData["subtype"].(string)
+	q.logger.Debug("handleControlRequest: subtype=%s", subtype)
 
 	var response map[string]interface{}
 	var err error
@@ -354,15 +360,23 @@ func (q *Query) handleControlRequest(msg *types.SystemMessage) {
 
 // handlePermissionRequest handles a permission request for tool use.
 func (q *Query) handlePermissionRequest(requestData map[string]interface{}) (map[string]interface{}, error) {
+	q.logger.Debug("handlePermissionRequest: entered, requestData=%+v", requestData)
+
 	if q.canUseTool == nil {
+		q.logger.Error("handlePermissionRequest: canUseTool callback is nil!")
 		return nil, types.NewControlProtocolError("canUseTool callback is not provided")
 	}
+
+	q.logger.Debug("handlePermissionRequest: canUseTool callback is set")
 
 	toolName, _ := requestData["tool_name"].(string)
 	input, _ := requestData["input"].(map[string]interface{})
 	suggestions, _ := requestData["permission_suggestions"].([]interface{})
 
+	q.logger.Debug("handlePermissionRequest: toolName=%s, input=%+v", toolName, input)
+
 	if toolName == "" || input == nil {
+		q.logger.Error("handlePermissionRequest: missing tool_name or input")
 		return nil, types.NewControlProtocolError("missing tool_name or input in permission request")
 	}
 
@@ -385,8 +399,11 @@ func (q *Query) handlePermissionRequest(requestData map[string]interface{}) (map
 	}
 
 	// Call permission callback
+	q.logger.Debug("handlePermissionRequest: CALLING canUseTool callback for tool=%s", toolName)
 	result, err := q.canUseTool(q.ctx, toolName, input, ctx)
+	q.logger.Debug("handlePermissionRequest: canUseTool callback returned: result=%+v, err=%v", result, err)
 	if err != nil {
+		q.logger.Error("handlePermissionRequest: canUseTool callback returned error: %v", err)
 		return nil, err
 	}
 
