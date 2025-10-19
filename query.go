@@ -100,8 +100,9 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 		}
 	}
 
-	// Create logger (non-verbose for query function)
-	logger := log.NewLogger(false)
+	// Create logger with verbosity from options
+	verbose := options != nil && options.Verbose
+	logger := log.NewLogger(verbose)
 
 	// Determine resume session ID from options
 	resumeID := ""
@@ -109,8 +110,8 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 		resumeID = *options.Resume
 	}
 
-	// Create subprocess transport with optional resume
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID)
+	// Create subprocess transport with optional resume and options
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID, options)
 
 	// Connect to CLI
 	if err := transportInst.Connect(ctx); err != nil {

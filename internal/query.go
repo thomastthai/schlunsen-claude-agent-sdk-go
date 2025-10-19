@@ -303,26 +303,31 @@ func (q *Query) handleControlResponse(msg *types.SystemMessage) error {
 
 // handleControlRequest handles an incoming control request from CLI.
 func (q *Query) handleControlRequest(msg *types.SystemMessage) {
-	// For control_request from CLI, the format might be different
-	// Try msg.Request first (for new format), then fall back to msg.Data
-	requestID, _ := msg.Data["request_id"].(string)
+	q.logger.Debug("handleControlRequest: entered, msg.RequestID='%s', msg.Request=%+v", msg.RequestID, msg.Request)
+
+	// Get request ID from top-level field (CLI sends it here)
+	requestID := msg.RequestID
+
+	// Get request data from Request field
+	requestData := msg.Request
+
+	q.logger.Debug("handleControlRequest: requestID='%s', requestData=%+v", requestID, requestData)
+
+	// For CLI-initiated requests (like can_use_tool), there might not be a request_id
+	// Generate one if needed
 	if requestID == "" {
-		requestID, _ = msg.Request["request_id"].(string)
+		requestID = fmt.Sprintf("cli-request-%d", atomic.AddInt64(&q.nextRequestID, 1))
+		q.logger.Debug("handleControlRequest: generated requestID=%s for CLI-initiated request", requestID)
 	}
 
-	var requestData map[string]interface{}
-	if msg.Request != nil {
-		requestData = msg.Request
-	} else {
-		requestData, _ = msg.Data["request"].(map[string]interface{})
-	}
-
-	if requestID == "" || requestData == nil {
+	if requestData == nil {
+		q.logger.Error("handleControlRequest: invalid control request format: requestData is nil")
 		q.sendErrorResponse(requestID, "invalid control request format")
 		return
 	}
 
 	subtype, _ := requestData["subtype"].(string)
+	q.logger.Debug("handleControlRequest: subtype=%s", subtype)
 
 	var response map[string]interface{}
 	var err error
@@ -354,15 +359,23 @@ func (q *Query) handleControlRequest(msg *types.SystemMessage) {
 
 // handlePermissionRequest handles a permission request for tool use.
 func (q *Query) handlePermissionRequest(requestData map[string]interface{}) (map[string]interface{}, error) {
+	q.logger.Debug("handlePermissionRequest: entered, requestData=%+v", requestData)
+
 	if q.canUseTool == nil {
+		q.logger.Error("handlePermissionRequest: canUseTool callback is nil!")
 		return nil, types.NewControlProtocolError("canUseTool callback is not provided")
 	}
+
+	q.logger.Debug("handlePermissionRequest: canUseTool callback is set")
 
 	toolName, _ := requestData["tool_name"].(string)
 	input, _ := requestData["input"].(map[string]interface{})
 	suggestions, _ := requestData["permission_suggestions"].([]interface{})
 
+	q.logger.Debug("handlePermissionRequest: toolName=%s, input=%+v", toolName, input)
+
 	if toolName == "" || input == nil {
+		q.logger.Error("handlePermissionRequest: missing tool_name or input")
 		return nil, types.NewControlProtocolError("missing tool_name or input in permission request")
 	}
 
@@ -385,8 +398,11 @@ func (q *Query) handlePermissionRequest(requestData map[string]interface{}) (map
 	}
 
 	// Call permission callback
+	q.logger.Debug("handlePermissionRequest: CALLING canUseTool callback for tool=%s", toolName)
 	result, err := q.canUseTool(q.ctx, toolName, input, ctx)
+	q.logger.Debug("handlePermissionRequest: canUseTool callback returned: result=%+v, err=%v", result, err)
 	if err != nil {
+		q.logger.Error("handlePermissionRequest: canUseTool callback returned error: %v", err)
 		return nil, err
 	}
 
@@ -596,10 +612,14 @@ func (q *Query) sendSuccessResponse(requestID string, response map[string]interf
 
 	data, err := json.Marshal(controlResponse)
 	if err != nil {
+		q.logger.Error("sendSuccessResponse: failed to marshal response: %v", err)
 		return
 	}
 
-	_ = q.transport.Write(q.ctx, string(data))
+	q.logger.Debug("sendSuccessResponse: sending control_response: %s", string(data))
+	if err := q.transport.Write(q.ctx, string(data)); err != nil {
+		q.logger.Error("sendSuccessResponse: failed to write: %v", err)
+	}
 }
 
 // sendErrorResponse sends an error control response.
