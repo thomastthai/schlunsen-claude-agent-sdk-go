@@ -293,7 +293,7 @@ func TestSubprocessCLITransportConnect(t *testing.T) {
 	}
 
 	logger := log.NewLogger(false) // Non-verbose for tests
-	transport := NewSubprocessCLITransport(echoPath, "", nil, logger)
+	transport := NewSubprocessCLITransport(echoPath, "", nil, logger, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -323,7 +323,7 @@ func TestSubprocessCLITransportWrite(t *testing.T) {
 	}
 
 	logger := log.NewLogger(false) // Non-verbose for tests
-	transport := NewSubprocessCLITransport(catPath, "", nil, logger)
+	transport := NewSubprocessCLITransport(catPath, "", nil, logger, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -351,7 +351,7 @@ func TestSubprocessCLITransportClose(t *testing.T) {
 	}
 
 	logger := log.NewLogger(false) // Non-verbose for tests
-	transport := NewSubprocessCLITransport(echoPath, "", nil, logger)
+	transport := NewSubprocessCLITransport(echoPath, "", nil, logger, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -442,7 +442,7 @@ func TestSubprocessEnvironment(t *testing.T) {
 	}
 
 	logger := log.NewLogger(false) // Non-verbose for tests
-	transport := NewSubprocessCLITransport(echoPath, "", env, logger)
+	transport := NewSubprocessCLITransport(echoPath, "", env, logger, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -532,7 +532,7 @@ func TestIntegrationSubprocessCLI(t *testing.T) {
 	}
 
 	logger := log.NewLogger(false) // Non-verbose for tests
-	transport := NewSubprocessCLITransport(cliPath, "", nil, logger)
+	transport := NewSubprocessCLITransport(cliPath, "", nil, logger, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

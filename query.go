@@ -103,8 +103,14 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 	// Create logger (non-verbose for query function)
 	logger := log.NewLogger(false)
 
-	// Create subprocess transport
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger)
+	// Determine resume session ID from options
+	resumeID := ""
+	if options.Resume != nil && *options.Resume != "" {
+		resumeID = *options.Resume
+	}
+
+	// Create subprocess transport with optional resume
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID)
 
 	// Connect to CLI
 	if err := transportInst.Connect(ctx); err != nil {
@@ -120,6 +126,12 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 		return nil, err
 	}
 
+	// Use resume ID as session ID, or default if not resuming
+	sessionID := "default-session"
+	if resumeID != "" {
+		sessionID = resumeID
+	}
+
 	// Build the query message to send to CLI
 	// Format matches Python SDK: type, message{role,content}, parent_tool_use_id, session_id
 	queryMsg := map[string]interface{}{
@@ -129,7 +141,7 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 			"content": prompt,
 		},
 		"parent_tool_use_id": nil,
-		"session_id":         "default-session",
+		"session_id":         sessionID,
 	}
 
 	// Marshal and send

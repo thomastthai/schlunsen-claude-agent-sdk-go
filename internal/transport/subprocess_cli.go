@@ -20,10 +20,11 @@ const (
 // SubprocessCLITransport implements Transport using a Claude Code CLI subprocess.
 // It manages the subprocess lifecycle, stdin/stdout/stderr pipes, and message streaming.
 type SubprocessCLITransport struct {
-	cliPath string
-	cwd     string
-	env     map[string]string
-	logger  *log.Logger
+	cliPath         string
+	cwd             string
+	env             map[string]string
+	logger          *log.Logger
+	resumeSessionID string // Optional session ID to resume conversation
 
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -50,13 +51,15 @@ type SubprocessCLITransport struct {
 // The cwd is the working directory for the subprocess (empty string uses current directory).
 // The env map contains additional environment variables to set for the subprocess.
 // The logger is used for debug/diagnostic output.
-func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string, logger *log.Logger) *SubprocessCLITransport {
+// The resumeSessionID is an optional session ID to resume a previous conversation.
+func NewSubprocessCLITransport(cliPath, cwd string, env map[string]string, logger *log.Logger, resumeSessionID string) *SubprocessCLITransport {
 	return &SubprocessCLITransport{
-		cliPath:  cliPath,
-		cwd:      cwd,
-		env:      env,
-		logger:   logger,
-		messages: make(chan types.Message, 10), // Buffered channel for smooth streaming
+		cliPath:         cliPath,
+		cwd:             cwd,
+		env:             env,
+		logger:          logger,
+		resumeSessionID: resumeSessionID,
+		messages:        make(chan types.Message, 10), // Buffered channel for smooth streaming
 	}
 }
 
@@ -75,12 +78,21 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 	// Create cancellable context
 	t.ctx, t.cancel = context.WithCancel(ctx)
 
-	// Build command: claude --input-format=stream-json --output-format=stream-json --verbose
-	// Note: We don't use --print in streaming mode; --print is for single-shot queries
-	t.cmd = exec.CommandContext(t.ctx, t.cliPath,
+	// Build command arguments
+	args := []string{
 		"--input-format=stream-json",
 		"--output-format=stream-json",
-		"--verbose")
+		"--verbose",
+	}
+
+	// Add --resume flag if resuming a conversation
+	if t.resumeSessionID != "" {
+		args = append(args, "--resume", t.resumeSessionID)
+		t.logger.Debug("Resuming Claude CLI conversation with session ID: %s", t.resumeSessionID)
+	}
+
+	// Create command with arguments
+	t.cmd = exec.CommandContext(t.ctx, t.cliPath, args...)
 
 	// Set working directory if provided
 	if t.cwd != "" {
