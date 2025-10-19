@@ -321,8 +321,15 @@ func (q *Query) handleControlRequest(msg *types.SystemMessage) {
 
 	q.logger.Debug("handleControlRequest: requestID=%s, requestData=%+v", requestID, requestData)
 
-	if requestID == "" || requestData == nil {
-		q.logger.Error("handleControlRequest: invalid control request format: requestID=%s, requestData=%+v", requestID, requestData)
+	// For CLI-initiated requests (like can_use_tool), there might not be a request_id
+	// Generate one if needed
+	if requestID == "" {
+		requestID = fmt.Sprintf("cli-request-%d", atomic.AddInt64(&q.nextRequestID, 1))
+		q.logger.Debug("handleControlRequest: generated requestID=%s for CLI-initiated request", requestID)
+	}
+
+	if requestData == nil {
+		q.logger.Error("handleControlRequest: invalid control request format: requestData is nil")
 		q.sendErrorResponse(requestID, "invalid control request format")
 		return
 	}
