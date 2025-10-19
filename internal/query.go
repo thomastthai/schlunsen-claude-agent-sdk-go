@@ -620,10 +620,14 @@ func (q *Query) sendSuccessResponse(requestID string, response map[string]interf
 
 	data, err := json.Marshal(controlResponse)
 	if err != nil {
+		q.logger.Error("sendSuccessResponse: failed to marshal response: %v", err)
 		return
 	}
 
-	_ = q.transport.Write(q.ctx, string(data))
+	q.logger.Debug("sendSuccessResponse: sending control_response: %s", string(data))
+	if err := q.transport.Write(q.ctx, string(data)); err != nil {
+		q.logger.Error("sendSuccessResponse: failed to write: %v", err)
+	}
 }
 
 // sendErrorResponse sends an error control response.
