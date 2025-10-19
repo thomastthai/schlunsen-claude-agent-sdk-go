@@ -101,10 +101,7 @@ func Query(ctx context.Context, prompt string, options *types.ClaudeAgentOptions
 	}
 
 	// Create logger with verbosity from options
-	verbose := false
-	if options != nil && options.Verbose {
-		verbose = true
-	}
+	verbose := options != nil && options.Verbose
 	logger := log.NewLogger(verbose)
 
 	// Determine resume session ID from options

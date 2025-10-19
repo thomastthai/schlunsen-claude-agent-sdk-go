@@ -24,7 +24,7 @@ type SubprocessCLITransport struct {
 	cwd             string
 	env             map[string]string
 	logger          *log.Logger
-	resumeSessionID string // Optional session ID to resume conversation
+	resumeSessionID string                    // Optional session ID to resume conversation
 	options         *types.ClaudeAgentOptions // Options for CLI configuration
 
 	cmd    *exec.Cmd

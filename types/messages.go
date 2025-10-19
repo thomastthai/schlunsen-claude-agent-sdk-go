@@ -299,8 +299,8 @@ type SystemMessage struct {
 	Type      string                 `json:"type"`
 	Subtype   string                 `json:"subtype,omitempty"`
 	Data      map[string]interface{} `json:"data,omitempty"`
-	Response  map[string]interface{} `json:"response,omitempty"` // For control_response messages
-	Request   map[string]interface{} `json:"request,omitempty"`  // For control_request messages
+	Response  map[string]interface{} `json:"response,omitempty"`   // For control_response messages
+	Request   map[string]interface{} `json:"request,omitempty"`    // For control_request messages
 	RequestID string                 `json:"request_id,omitempty"` // For control_request/control_response messages (top-level field)
 }
 
