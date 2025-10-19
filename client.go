@@ -144,8 +144,8 @@ func NewClient(ctx context.Context, options *types.ClaudeAgentOptions) (*Client,
 		resumeID = *options.Resume
 	}
 
-	// Create subprocess transport with optional resume
-	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID)
+	// Create subprocess transport with optional resume and options
+	transportInst := transport.NewSubprocessCLITransport(cliPath, cwd, env, logger, resumeID, options)
 
 	return &Client{
 		options:   options,
