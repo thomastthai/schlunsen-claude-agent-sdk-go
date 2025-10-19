@@ -94,6 +94,15 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 		t.logger.Debug("Setting permission mode: %s", string(*t.options.PermissionMode))
 	}
 
+	// Add system prompt if specified
+	if t.options != nil && t.options.SystemPrompt != nil {
+		// SystemPrompt can be either a string or a preset
+		if promptStr, ok := t.options.SystemPrompt.(string); ok {
+			args = append(args, "--system-prompt", promptStr)
+			t.logger.Debug("Setting system prompt: %s", promptStr)
+		}
+	}
+
 	// Add --resume flag if resuming a conversation
 	if t.resumeSessionID != "" {
 		args = append(args, "--resume", t.resumeSessionID)
