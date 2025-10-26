@@ -34,4 +34,8 @@ type Transport interface {
 	// IsReady checks if the transport is ready for communication.
 	// Returns true if the subprocess is running and ready to send/receive messages.
 	IsReady() bool
+
+	// GetError returns any error that occurred during transport operation.
+	// This is useful for checking if an error occurred in async operations (like stderr parsing).
+	GetError() error
 }

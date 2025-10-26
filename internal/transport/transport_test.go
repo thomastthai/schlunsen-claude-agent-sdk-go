@@ -580,3 +580,96 @@ func TestIntegrationSubprocessCLI(t *testing.T) {
 		t.Logf("Timeout waiting for response (may be expected for this test)")
 	}
 }
+
+// TestExtractSessionNotFoundError tests parsing of session not found errors from stderr
+func TestExtractSessionNotFoundError(t *testing.T) {
+	tests := []struct {
+		name          string
+		stderrText    string
+		wantMatched   bool
+		wantSessionID string
+	}{
+		{
+			name:          "valid session not found error",
+			stderrText:    "No conversation found with session ID: 8587b432-e504-42c8-b9a7-e3fd0b4b2c60",
+			wantMatched:   true,
+			wantSessionID: "8587b432-e504-42c8-b9a7-e3fd0b4b2c60",
+		},
+		{
+			name:          "session not found with extra text",
+			stderrText:    "Error: No conversation found with session ID: 12345678-1234-1234-1234-123456789abc. Please check the ID.",
+			wantMatched:   true,
+			wantSessionID: "12345678-1234-1234-1234-123456789abc.",
+		},
+		{
+			name:          "session not found with leading whitespace",
+			stderrText:    "No conversation found with session ID:   abc123-def456  ",
+			wantMatched:   true,
+			wantSessionID: "abc123-def456",
+		},
+		{
+			name:          "different error message",
+			stderrText:    "Connection failed: timeout",
+			wantMatched:   false,
+			wantSessionID: "",
+		},
+		{
+			name:          "partial match",
+			stderrText:    "No conversation found",
+			wantMatched:   false,
+			wantSessionID: "",
+		},
+		{
+			name:          "empty string",
+			stderrText:    "",
+			wantMatched:   false,
+			wantSessionID: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotMatched, gotSessionID := extractSessionNotFoundError(tt.stderrText)
+
+			if gotMatched != tt.wantMatched {
+				t.Errorf("extractSessionNotFoundError() matched = %v, want %v", gotMatched, tt.wantMatched)
+			}
+
+			if gotSessionID != tt.wantSessionID {
+				t.Errorf("extractSessionNotFoundError() sessionID = %q, want %q", gotSessionID, tt.wantSessionID)
+			}
+		})
+	}
+}
+
+// TestParseStderrError tests the stderr error parsing and error creation
+func TestParseStderrError(t *testing.T) {
+	logger := log.NewLogger(false)
+	transport := &SubprocessCLITransport{
+		logger:   logger,
+		messages: make(chan types.Message, 10),
+	}
+
+	// Test session not found error
+	stderrText := "No conversation found with session ID: 8587b432-e504-42c8-b9a7-e3fd0b4b2c60"
+	transport.parseStderrError(stderrText)
+
+	// Check that error was stored
+	err := transport.GetError()
+	if err == nil {
+		t.Fatal("parseStderrError() should have stored an error")
+	}
+
+	// Check that it's the right error type
+	if !types.IsSessionNotFoundError(err) {
+		t.Errorf("parseStderrError() stored error type = %T, want SessionNotFoundError", err)
+	}
+
+	// Check session ID is in the error
+	if sessionErr, ok := err.(*types.SessionNotFoundError); ok {
+		if sessionErr.SessionID != "8587b432-e504-42c8-b9a7-e3fd0b4b2c60" {
+			t.Errorf("SessionNotFoundError.SessionID = %q, want %q",
+				sessionErr.SessionID, "8587b432-e504-42c8-b9a7-e3fd0b4b2c60")
+		}
+	}
+}

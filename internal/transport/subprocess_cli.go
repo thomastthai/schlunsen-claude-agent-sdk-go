@@ -121,6 +121,21 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 		t.logger.Debug("Resuming Claude CLI conversation with session ID: %s", t.resumeSessionID)
 	}
 
+	// Add permission bypass flags if enabled
+	if t.options != nil {
+		// Must set allow flag first (acts as safety switch)
+		if t.options.AllowDangerouslySkipPermissions {
+			args = append(args, "--allow-dangerously-skip-permissions")
+			t.logger.Debug("Allowing permission bypass (safety switch enabled)")
+
+			// Only add skip flag if allow flag is also set
+			if t.options.DangerouslySkipPermissions {
+				args = append(args, "--dangerously-skip-permissions")
+				t.logger.Debug("DANGER: Bypassing all permissions - use only in sandboxed environments!")
+			}
+		}
+	}
+
 	// Log the full command for debugging
 	t.logger.Debug("Claude CLI command: %s %v", t.cliPath, args)
 
@@ -386,6 +401,7 @@ func (t *SubprocessCLITransport) GetError() error {
 
 // readStderr reads stderr output in a goroutine for debugging.
 // This is a helper function for monitoring subprocess errors.
+// It also parses known error patterns and stores them as typed errors.
 func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 	if t.stderr == nil {
 		return
@@ -419,8 +435,87 @@ func (t *SubprocessCLITransport) readStderr(ctx context.Context) {
 
 		// Log stderr output to file
 		if len(line) > 0 {
-			_, _ = fmt.Fprintf(logFile, "[Claude CLI stderr]: %s\n", string(line))
+			stderrText := string(line)
+			_, _ = fmt.Fprintf(logFile, "[Claude CLI stderr]: %s\n", stderrText)
 			_ = logFile.Sync() // Flush to disk immediately
+
+			// Parse known error patterns and create typed errors
+			t.parseStderrError(stderrText)
 		}
 	}
+}
+
+// parseStderrError parses stderr text for known error patterns and stores typed errors.
+func (t *SubprocessCLITransport) parseStderrError(stderrText string) {
+	// Check for "No conversation found with session ID:" error
+	if matched, sessionID := extractSessionNotFoundError(stderrText); matched {
+		// Create typed error
+		err := types.NewSessionNotFoundError(
+			sessionID,
+			"Claude CLI could not find this conversation. It may have been deleted or the CLI was reinstalled.",
+		)
+
+		// Store error for retrieval
+		t.OnError(err)
+
+		// Log it
+		t.logger.Error("Claude session not found: %s", sessionID)
+	}
+}
+
+// extractSessionNotFoundError checks if the stderr text contains a session not found error.
+// Returns (true, sessionID) if matched, (false, "") otherwise.
+func extractSessionNotFoundError(stderrText string) (bool, string) {
+	// Pattern: "No conversation found with session ID: <uuid>"
+	// Example: "No conversation found with session ID: 8587b432-e504-42c8-b9a7-e3fd0b4b2c60"
+	const pattern = "No conversation found with session ID:"
+
+	if idx := findSubstring(stderrText, pattern); idx >= 0 {
+		// Extract session ID after the pattern
+		sessionIDStart := idx + len(pattern)
+		if sessionIDStart < len(stderrText) {
+			// Trim whitespace and extract the session ID
+			remaining := stderrText[sessionIDStart:]
+			sessionID := trimWhitespace(remaining)
+			// Session ID is the first token (UUID format)
+			if len(sessionID) > 0 {
+				// Take everything up to the first whitespace or end of string
+				endIdx := 0
+				for endIdx < len(sessionID) && !isWhitespace(rune(sessionID[endIdx])) {
+					endIdx++
+				}
+				sessionID = sessionID[:endIdx]
+				return true, sessionID
+			}
+		}
+	}
+
+	return false, ""
+}
+
+// Helper functions for string parsing
+
+func findSubstring(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+func trimWhitespace(s string) string {
+	start := 0
+	for start < len(s) && isWhitespace(rune(s[start])) {
+		start++
+	}
+	end := len(s)
+	for end > start && isWhitespace(rune(s[end-1])) {
+		end--
+	}
+	return s[start:end]
+}
+
+func isWhitespace(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }

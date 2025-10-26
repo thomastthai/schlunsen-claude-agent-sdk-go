@@ -193,6 +193,21 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 	c.logger.Debug("Transport connected successfully")
 
+	// Wait briefly and check for immediate errors (like session not found)
+	// This gives the stderr reader time to detect and report early errors
+	select {
+	case <-c.ctx.Done():
+		_ = c.transport.Close(ctx)
+		return ctx.Err()
+	default:
+		// Check if transport reported an error (e.g., session not found)
+		if err := c.transport.GetError(); err != nil {
+			c.logger.Error("Transport error detected during connection: %v", err)
+			_ = c.transport.Close(ctx)
+			return err
+		}
+	}
+
 	// Create query handler in streaming mode
 	c.query = internal.NewQuery(ctx, c.transport, c.options, c.logger, true)
 	c.logger.Debug("Query handler created")

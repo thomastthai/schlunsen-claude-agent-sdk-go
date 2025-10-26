@@ -359,3 +359,59 @@ func IsPermissionDeniedError(err error) bool {
 	var e *PermissionDeniedError
 	return errors.As(err, &e)
 }
+
+// SessionNotFoundError indicates that a Claude session could not be found.
+// This typically occurs when attempting to resume a conversation with a session ID
+// that no longer exists in Claude's database, often due to CLI reinstallation or
+// session expiration.
+type SessionNotFoundError struct {
+	SessionID string // The session ID that was not found
+	Message   string // Human-readable error message
+	Cause     error  // Optional underlying error
+}
+
+// Error returns the error message, implementing the error interface.
+func (e *SessionNotFoundError) Error() string {
+	msg := e.Message
+	if e.SessionID != "" {
+		msg = fmt.Sprintf("%s (session ID: %s)", msg, e.SessionID)
+	}
+	if e.Cause != nil {
+		msg = msg + ": " + e.Cause.Error()
+	}
+	return msg
+}
+
+// Is checks if the target error is a SessionNotFoundError.
+func (e *SessionNotFoundError) Is(target error) bool {
+	_, ok := target.(*SessionNotFoundError)
+	return ok
+}
+
+// Unwrap returns the wrapped error.
+func (e *SessionNotFoundError) Unwrap() error {
+	return e.Cause
+}
+
+// NewSessionNotFoundError creates a new SessionNotFoundError with the given session ID and message.
+func NewSessionNotFoundError(sessionID, message string) *SessionNotFoundError {
+	return &SessionNotFoundError{
+		SessionID: sessionID,
+		Message:   message,
+	}
+}
+
+// NewSessionNotFoundErrorWithCause creates a new SessionNotFoundError with the given session ID, message, and cause.
+func NewSessionNotFoundErrorWithCause(sessionID, message string, cause error) *SessionNotFoundError {
+	return &SessionNotFoundError{
+		SessionID: sessionID,
+		Message:   message,
+		Cause:     cause,
+	}
+}
+
+// IsSessionNotFoundError checks if an error is or wraps a SessionNotFoundError.
+func IsSessionNotFoundError(err error) bool {
+	var e *SessionNotFoundError
+	return errors.As(err, &e)
+}
