@@ -18,6 +18,7 @@ type mockTransport struct {
 	writtenData    []string
 	closed         bool
 	ready          bool
+	err            error
 	onErrorHandler func(error)
 }
 
@@ -68,6 +69,12 @@ func (m *mockTransport) IsReady() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.ready
+}
+
+func (m *mockTransport) GetError() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.err
 }
 
 func (m *mockTransport) sendMessage(msg types.Message) {

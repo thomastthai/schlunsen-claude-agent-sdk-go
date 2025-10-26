@@ -110,6 +110,56 @@ func TestPermissionDeniedError(t *testing.T) {
 	})
 }
 
+// TestSessionNotFoundError tests SessionNotFoundError creation and methods.
+func TestSessionNotFoundError(t *testing.T) {
+	t.Run("basic error", func(t *testing.T) {
+		err := NewSessionNotFoundError("", "session not found")
+		if err.Error() != "session not found" {
+			t.Errorf("expected 'session not found', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("error with session ID", func(t *testing.T) {
+		sessionID := "8587b432-e504-42c8-b9a7-e3fd0b4b2c60"
+		err := NewSessionNotFoundError(sessionID, "Claude CLI could not find this conversation")
+		if !containsSubstring(err.Error(), sessionID) {
+			t.Error("expected error message to contain session ID")
+		}
+		if !containsSubstring(err.Error(), "could not find") {
+			t.Error("expected error message to contain description")
+		}
+	})
+
+	t.Run("error with cause", func(t *testing.T) {
+		sessionID := "8587b432-e504-42c8-b9a7-e3fd0b4b2c60"
+		cause := errors.New("CLI process exited")
+		err := NewSessionNotFoundErrorWithCause(sessionID, "session not found", cause)
+		if err.Unwrap() != cause {
+			t.Error("expected unwrap to return cause")
+		}
+	})
+
+	t.Run("errors.Is", func(t *testing.T) {
+		err := NewSessionNotFoundError("test-id", "test")
+		target := &SessionNotFoundError{}
+		if !errors.Is(err, target) {
+			t.Error("expected errors.Is to return true for SessionNotFoundError")
+		}
+	})
+
+	t.Run("IsSessionNotFoundError helper", func(t *testing.T) {
+		err := NewSessionNotFoundError("test-id", "test")
+		if !IsSessionNotFoundError(err) {
+			t.Error("expected IsSessionNotFoundError to return true")
+		}
+
+		otherErr := NewCLINotFoundError("other error")
+		if IsSessionNotFoundError(otherErr) {
+			t.Error("expected IsSessionNotFoundError to return false for different error type")
+		}
+	})
+}
+
 // Helper function to check if a string contains a substring.
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && stringContains(s, substr))
