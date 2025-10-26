@@ -90,6 +90,16 @@ type ClaudeAgentOptions struct {
 	PermissionMode           *PermissionMode `json:"permission_mode,omitempty"`
 	PermissionPromptToolName *string         `json:"permission_prompt_tool_name,omitempty"`
 
+	// Permission bypass configuration (use with caution - only for sandboxed environments)
+	// These flags disable ALL permission checks, allowing Claude to execute any tool without approval.
+	//
+	// DangerouslySkipPermissions: Actually bypass all permissions (requires AllowDangerouslySkipPermissions)
+	// AllowDangerouslySkipPermissions: Enable permission bypass as an option
+	//
+	// Security Warning: Only use in isolated environments with no internet access.
+	DangerouslySkipPermissions      bool `json:"dangerously_skip_permissions,omitempty"`
+	AllowDangerouslySkipPermissions bool `json:"allow_dangerously_skip_permissions,omitempty"`
+
 	// Session configuration
 	ContinueConversation bool    `json:"continue_conversation,omitempty"`
 	Resume               *string `json:"resume,omitempty"`
@@ -356,5 +366,25 @@ func (o *ClaudeAgentOptions) WithStderr(callback StderrCallbackFunc) *ClaudeAgen
 // WithVerbose enables or disables verbose debug logging.
 func (o *ClaudeAgentOptions) WithVerbose(enabled bool) *ClaudeAgentOptions {
 	o.Verbose = enabled
+	return o
+}
+
+// WithDangerouslySkipPermissions bypasses all permission checks.
+// This is DANGEROUS and should only be used in sandboxed environments.
+// Requires AllowDangerouslySkipPermissions to be enabled first.
+//
+// Security Warning: This disables ALL safety checks. Only use in isolated environments
+// with no internet access and no sensitive data.
+func (o *ClaudeAgentOptions) WithDangerouslySkipPermissions(skip bool) *ClaudeAgentOptions {
+	o.DangerouslySkipPermissions = skip
+	return o
+}
+
+// WithAllowDangerouslySkipPermissions enables the option to bypass permissions.
+// This must be set to true before DangerouslySkipPermissions can be used.
+//
+// This is the "safety switch" that allows the dangerous flag to work.
+func (o *ClaudeAgentOptions) WithAllowDangerouslySkipPermissions(allow bool) *ClaudeAgentOptions {
+	o.AllowDangerouslySkipPermissions = allow
 	return o
 }
