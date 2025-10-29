@@ -82,59 +82,7 @@ func (t *SubprocessCLITransport) Connect(ctx context.Context) error {
 	t.ctx, t.cancel = context.WithCancel(ctx)
 
 	// Build command arguments
-	args := []string{
-		"--input-format=stream-json",
-		"--output-format=stream-json",
-		"--verbose",
-	}
-
-	// Add permission prompt tool if specified
-	if t.options != nil && t.options.PermissionPromptToolName != nil {
-		args = append(args, "--permission-prompt-tool", *t.options.PermissionPromptToolName)
-		t.logger.Debug("Setting permission prompt tool: %s", *t.options.PermissionPromptToolName)
-	}
-
-	// Add permission mode if specified
-	if t.options != nil && t.options.PermissionMode != nil {
-		args = append(args, "--permission-mode", string(*t.options.PermissionMode))
-		t.logger.Debug("Setting permission mode: %s", string(*t.options.PermissionMode))
-	}
-
-	// Add system prompt if specified
-	if t.options != nil && t.options.SystemPrompt != nil {
-		// SystemPrompt can be either a string or a preset
-		if promptStr, ok := t.options.SystemPrompt.(string); ok {
-			args = append(args, "--system-prompt", promptStr)
-			t.logger.Debug("Setting system prompt: %s", promptStr)
-		}
-	}
-
-	// Add model if specified
-	if t.options != nil && t.options.Model != nil {
-		args = append(args, "--model", *t.options.Model)
-		t.logger.Debug("Setting model: %s", *t.options.Model)
-	}
-
-	// Add --resume flag if resuming a conversation
-	if t.resumeSessionID != "" {
-		args = append(args, "--resume", t.resumeSessionID)
-		t.logger.Debug("Resuming Claude CLI conversation with session ID: %s", t.resumeSessionID)
-	}
-
-	// Add permission bypass flags if enabled
-	if t.options != nil {
-		// Must set allow flag first (acts as safety switch)
-		if t.options.AllowDangerouslySkipPermissions {
-			args = append(args, "--allow-dangerously-skip-permissions")
-			t.logger.Debug("Allowing permission bypass (safety switch enabled)")
-
-			// Only add skip flag if allow flag is also set
-			if t.options.DangerouslySkipPermissions {
-				args = append(args, "--dangerously-skip-permissions")
-				t.logger.Debug("DANGER: Bypassing all permissions - use only in sandboxed environments!")
-			}
-		}
-	}
+	args := t.buildCommandArgs()
 
 	// Log the full command for debugging
 	t.logger.Debug("Claude CLI command: %s %v", t.cliPath, args)
@@ -314,6 +262,72 @@ func (t *SubprocessCLITransport) Write(ctx context.Context, data string) error {
 // The channel is closed when the subprocess exits or an error occurs.
 func (t *SubprocessCLITransport) ReadMessages(ctx context.Context) <-chan types.Message {
 	return t.messages
+}
+
+// buildCommandArgs builds the command line arguments for the CLI subprocess.
+// This is extracted into a separate method to allow for testing.
+func (t *SubprocessCLITransport) buildCommandArgs() []string {
+	args := []string{
+		"--input-format=stream-json",
+		"--output-format=stream-json",
+		"--verbose",
+	}
+
+	// Add permission prompt tool if specified
+	if t.options != nil && t.options.PermissionPromptToolName != nil {
+		args = append(args, "--permission-prompt-tool", *t.options.PermissionPromptToolName)
+		t.logger.Debug("Setting permission prompt tool: %s", *t.options.PermissionPromptToolName)
+	}
+
+	// Add permission mode if specified
+	if t.options != nil && t.options.PermissionMode != nil {
+		args = append(args, "--permission-mode", string(*t.options.PermissionMode))
+		t.logger.Debug("Setting permission mode: %s", string(*t.options.PermissionMode))
+	}
+
+	// Add system prompt if specified
+	if t.options != nil && t.options.SystemPrompt != nil {
+		// SystemPrompt can be either a string or a preset
+		if promptStr, ok := t.options.SystemPrompt.(string); ok {
+			args = append(args, "--system-prompt", promptStr)
+			t.logger.Debug("Setting system prompt: %s", promptStr)
+		}
+	}
+
+	// Add model if specified
+	if t.options != nil && t.options.Model != nil {
+		args = append(args, "--model", *t.options.Model)
+		t.logger.Debug("Setting model: %s", *t.options.Model)
+	}
+
+	// Add --resume flag if resuming a conversation
+	if t.resumeSessionID != "" {
+		args = append(args, "--resume", t.resumeSessionID)
+		t.logger.Debug("Resuming Claude CLI conversation with session ID: %s", t.resumeSessionID)
+	}
+
+	// Add --fork-session flag if forking a resumed session
+	if t.options != nil && t.options.ForkSession {
+		args = append(args, "--fork-session")
+		t.logger.Debug("Forking resumed session to new session ID")
+	}
+
+	// Add permission bypass flags if enabled
+	if t.options != nil {
+		// Must set allow flag first (acts as safety switch)
+		if t.options.AllowDangerouslySkipPermissions {
+			args = append(args, "--allow-dangerously-skip-permissions")
+			t.logger.Debug("Allowing permission bypass (safety switch enabled)")
+
+			// Only add skip flag if allow flag is also set
+			if t.options.DangerouslySkipPermissions {
+				args = append(args, "--dangerously-skip-permissions")
+				t.logger.Debug("DANGER: Bypassing all permissions - use only in sandboxed environments!")
+			}
+		}
+	}
+
+	return args
 }
 
 // Close terminates the subprocess and cleans up all resources.
