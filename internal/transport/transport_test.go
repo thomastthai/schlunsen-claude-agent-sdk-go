@@ -673,3 +673,91 @@ func TestParseStderrError(t *testing.T) {
 		}
 	}
 }
+
+// TestForkSessionFlag tests that --fork-session flag is passed when ForkSession is true
+func TestForkSessionFlag(t *testing.T) {
+	tests := []struct {
+		name              string
+		resumeSessionID   string
+		forkSession       bool
+		wantResumeFlag    bool
+		wantForkFlag      bool
+	}{
+		{
+			name:              "with resume and fork session",
+			resumeSessionID:   "test-session-id",
+			forkSession:       true,
+			wantResumeFlag:    true,
+			wantForkFlag:      true,
+		},
+		{
+			name:              "with resume but no fork session",
+			resumeSessionID:   "test-session-id",
+			forkSession:       false,
+			wantResumeFlag:    true,
+			wantForkFlag:      false,
+		},
+		{
+			name:              "with fork session but no resume",
+			resumeSessionID:   "",
+			forkSession:       true,
+			wantResumeFlag:    false,
+			wantForkFlag:      true,
+		},
+		{
+			name:              "without resume and fork session",
+			resumeSessionID:   "",
+			forkSession:       false,
+			wantResumeFlag:    false,
+			wantForkFlag:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create options with fork session setting
+			opts := types.NewClaudeAgentOptions().
+				WithForkSession(tt.forkSession)
+
+			logger := log.NewLogger(false)
+			transport := NewSubprocessCLITransport("/bin/echo", "", nil, logger, tt.resumeSessionID, opts)
+
+			// Build command args (without actually connecting)
+			args := transport.buildCommandArgs()
+
+			// Convert to string for easier searching
+			argsStr := strings.Join(args, " ")
+			t.Logf("CLI args: %v", args)
+
+			// Check for --resume flag
+			hasResumeFlag := contains(args, "--resume")
+			if hasResumeFlag != tt.wantResumeFlag {
+				t.Errorf("--resume flag present = %v, want %v", hasResumeFlag, tt.wantResumeFlag)
+			}
+
+			// Check for session ID if resume flag is expected
+			if tt.wantResumeFlag {
+				hasSessionID := contains(args, tt.resumeSessionID)
+				if !hasSessionID {
+					t.Errorf("session ID %q not found in args: %v", tt.resumeSessionID, args)
+				}
+			}
+
+			// Check for --fork-session flag
+			hasForkFlag := contains(args, "--fork-session")
+			if hasForkFlag != tt.wantForkFlag {
+				t.Errorf("--fork-session flag present = %v, want %v\nArgs: %s", hasForkFlag, tt.wantForkFlag, argsStr)
+			}
+		})
+	}
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
