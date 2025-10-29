@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -58,12 +59,17 @@ func TestFindCLI(t *testing.T) {
 		{
 			name: "CLI not found",
 			setup: func() func() {
-				// Save and clear PATH
+				// Store original values
 				origPath := os.Getenv("PATH")
+				origHome := os.Getenv("HOME")
+
+				// Clear PATH and set HOME to non-existent directory
 				_ = os.Setenv("PATH", "")
+				_ = os.Setenv("HOME", "/tmp/nonexistent-home-for-claude-test-"+fmt.Sprint(time.Now().UnixNano()))
 
 				return func() {
 					_ = os.Setenv("PATH", origPath)
+					_ = os.Setenv("HOME", origHome)
 				}
 			},
 			wantError: true,
@@ -79,7 +85,7 @@ func TestFindCLI(t *testing.T) {
 
 			if tt.wantError {
 				if err == nil {
-					t.Errorf("FindCLI() expected error, got nil")
+					t.Errorf("FindCLI() expected error, got nil (found path: %s, PATH=%s, HOME=%s)", path, os.Getenv("PATH"), os.Getenv("HOME"))
 				}
 				var cliNotFoundErr *types.CLINotFoundError
 				if err != nil && !types.IsCLINotFoundError(err) {
@@ -677,39 +683,39 @@ func TestParseStderrError(t *testing.T) {
 // TestForkSessionFlag tests that --fork-session flag is passed when ForkSession is true
 func TestForkSessionFlag(t *testing.T) {
 	tests := []struct {
-		name              string
-		resumeSessionID   string
-		forkSession       bool
-		wantResumeFlag    bool
-		wantForkFlag      bool
+		name            string
+		resumeSessionID string
+		forkSession     bool
+		wantResumeFlag  bool
+		wantForkFlag    bool
 	}{
 		{
-			name:              "with resume and fork session",
-			resumeSessionID:   "test-session-id",
-			forkSession:       true,
-			wantResumeFlag:    true,
-			wantForkFlag:      true,
+			name:            "with resume and fork session",
+			resumeSessionID: "test-session-id",
+			forkSession:     true,
+			wantResumeFlag:  true,
+			wantForkFlag:    true,
 		},
 		{
-			name:              "with resume but no fork session",
-			resumeSessionID:   "test-session-id",
-			forkSession:       false,
-			wantResumeFlag:    true,
-			wantForkFlag:      false,
+			name:            "with resume but no fork session",
+			resumeSessionID: "test-session-id",
+			forkSession:     false,
+			wantResumeFlag:  true,
+			wantForkFlag:    false,
 		},
 		{
-			name:              "with fork session but no resume",
-			resumeSessionID:   "",
-			forkSession:       true,
-			wantResumeFlag:    false,
-			wantForkFlag:      true,
+			name:            "with fork session but no resume",
+			resumeSessionID: "",
+			forkSession:     true,
+			wantResumeFlag:  false,
+			wantForkFlag:    true,
 		},
 		{
-			name:              "without resume and fork session",
-			resumeSessionID:   "",
-			forkSession:       false,
-			wantResumeFlag:    false,
-			wantForkFlag:      false,
+			name:            "without resume and fork session",
+			resumeSessionID: "",
+			forkSession:     false,
+			wantResumeFlag:  false,
+			wantForkFlag:    false,
 		},
 	}
 
