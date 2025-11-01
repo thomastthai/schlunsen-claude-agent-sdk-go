@@ -38,7 +38,7 @@ func FindCLI() (string, error) {
 
 	// Try common install locations
 	locations := []string{
-		"~/.claude/local/claude",      // Default location (CLI 2.0+)
+		"~/.claude/local/claude", // Default location (CLI 2.0+)
 		"~/.npm-global/bin/claude",
 		"/usr/local/bin/claude",
 		"~/.local/bin/claude",
