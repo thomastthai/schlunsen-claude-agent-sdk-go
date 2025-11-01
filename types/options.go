@@ -106,8 +106,10 @@ type ClaudeAgentOptions struct {
 	ForkSession          bool    `json:"fork_session,omitempty"`
 
 	// Model and execution limits
-	Model    *string `json:"model,omitempty"`
-	MaxTurns *int    `json:"max_turns,omitempty"`
+	Model             *string  `json:"model,omitempty"`
+	MaxTurns          *int     `json:"max_turns,omitempty"`
+	MaxThinkingTokens *int     `json:"max_thinking_tokens,omitempty"` // Maximum tokens for extended thinking
+	MaxBudgetUSD      *float64 `json:"max_budget_usd,omitempty"`      // Maximum budget in USD for this query
 
 	// API configuration
 	BaseURL *string `json:"base_url,omitempty"` // Custom Anthropic API base URL (ANTHROPIC_BASE_URL)
@@ -234,6 +236,20 @@ func (o *ClaudeAgentOptions) WithModel(model string) *ClaudeAgentOptions {
 // WithMaxTurns sets the maximum number of turns.
 func (o *ClaudeAgentOptions) WithMaxTurns(maxTurns int) *ClaudeAgentOptions {
 	o.MaxTurns = &maxTurns
+	return o
+}
+
+// WithMaxThinkingTokens sets the maximum tokens for extended thinking.
+// This limits how many tokens Claude can use for internal reasoning before responding.
+func (o *ClaudeAgentOptions) WithMaxThinkingTokens(maxTokens int) *ClaudeAgentOptions {
+	o.MaxThinkingTokens = &maxTokens
+	return o
+}
+
+// WithMaxBudgetUSD sets the maximum budget in USD for this query.
+// This helps prevent unexpectedly high API costs by stopping execution when the limit is reached.
+func (o *ClaudeAgentOptions) WithMaxBudgetUSD(maxBudget float64) *ClaudeAgentOptions {
+	o.MaxBudgetUSD = &maxBudget
 	return o
 }
 

@@ -327,6 +327,18 @@ func (t *SubprocessCLITransport) buildCommandArgs() []string {
 		}
 	}
 
+	// Add extended thinking token limit if specified
+	if t.options != nil && t.options.MaxThinkingTokens != nil {
+		args = append(args, "--max-thinking-tokens", fmt.Sprintf("%d", *t.options.MaxThinkingTokens))
+		t.logger.Debug("Setting max thinking tokens: %d", *t.options.MaxThinkingTokens)
+	}
+
+	// Add budget limit if specified
+	if t.options != nil && t.options.MaxBudgetUSD != nil {
+		args = append(args, "--max-budget-usd", fmt.Sprintf("%.2f", *t.options.MaxBudgetUSD))
+		t.logger.Debug("Setting max budget: $%.2f USD", *t.options.MaxBudgetUSD)
+	}
+
 	return args
 }
 
