@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 )
 
 func TestNewClient_NilOptions(t *testing.T) {
+	// Disable version checking to speed up tests
+	t.Setenv("CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK", "1")
+
 	ctx := context.Background()
 
 	client, err := NewClient(ctx, nil)
@@ -214,6 +218,11 @@ func TestClient_ContextCancellation(t *testing.T) {
 
 // TestClient_Integration is an integration test that requires Claude CLI to be installed.
 func TestClient_Integration(t *testing.T) {
+	// This test requires actual Claude CLI and API key
+	if os.Getenv("RUN_INTEGRATION_TESTS") == "" {
+		t.Skip("Skipping integration test (set RUN_INTEGRATION_TESTS=1 to run)")
+	}
+
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
